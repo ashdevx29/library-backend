@@ -1,0 +1,1 @@
+export const validateDashboardQuery=(req,res,next)=>{for(const key of ['months','limit'])if(req.query[key]!==undefined&&(!/^\d+$/.test(req.query[key])||Number(req.query[key])<1||Number(req.query[key])>24))return res.status(400).json({success:false,message:key+' must be between 1 and 24'});next()};

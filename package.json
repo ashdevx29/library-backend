@@ -1,0 +1,27 @@
+{
+  "name": "saahityik-library-erp-server",
+  "version": "1.0.0",
+  "description": "Backend for Saahityik Library ERP",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.4",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.19.1",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5",
+    "xlsx": "^0.18.5"
+  }
+}
