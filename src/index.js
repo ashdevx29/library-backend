@@ -47,15 +47,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: true },
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: true },
 });
 
 setSeatIo(io);
 
 // ─── Global Security Middleware ───
 app.use(helmetMiddleware);
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://library-frontend-jade.vercel.app',
+  'http://localhost:5173',
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(null, true);
+  },
   credentials: true,
 }));
 app.use(cookieParser());
