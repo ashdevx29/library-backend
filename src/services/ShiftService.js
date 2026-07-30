@@ -43,7 +43,7 @@ export const ShiftService = {
       { shiftName: 'Morning', shiftCode: 'MOR', startTime: '06:00', endTime: '12:00', description: 'Morning study shift', status: 'Active' },
       { shiftName: 'Afternoon', shiftCode: 'AFT', startTime: '12:00', endTime: '17:00', description: 'Afternoon study shift', status: 'Active' },
       { shiftName: 'Evening', shiftCode: 'EVE', startTime: '17:00', endTime: '21:00', description: 'Evening study shift', status: 'Active' },
-      { shiftName: 'Night', shiftCode: 'NGT', startTime: '21:00', endTime: '23:59', description: 'Night study shift', status: 'Active' },
+      { shiftName: 'Full Day', shiftCode: 'FUL', startTime: '07:00', endTime: '20:00', description: 'Full day shift (7AM-8PM)', status: 'Active' },
     ];
 
     for (const item of defaults) {

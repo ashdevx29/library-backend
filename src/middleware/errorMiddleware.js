@@ -1,5 +1,5 @@
 export const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
+  if (process.env.NODE_ENV !== 'production') console.error(err.stack);
 
   if (err.name === 'ValidationError') {
     const messages = Object.values(err.errors).map(e => e.message);
@@ -29,7 +29,7 @@ export const errorHandler = (err, req, res, next) => {
 
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message,
   });
 };
 

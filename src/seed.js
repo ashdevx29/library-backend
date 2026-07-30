@@ -36,7 +36,7 @@ const seedAll = async () => {
     }
 
     await ShiftService.seedDefaults();
-    console.log('Default shifts seeded (Morning, Afternoon, Evening, Night)');
+    console.log('Default shifts seeded (Morning, Afternoon, Evening, Full Day)');
 
     console.log('-----------------------------------');
     console.log('Seed complete!');

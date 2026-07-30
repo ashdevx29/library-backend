@@ -20,7 +20,8 @@ export const QRAttendanceService = {
 
     const token = jwt.sign(payload, QR_SECRET, { expiresIn: QR_EXPIRY });
 
-    const url = `http://localhost:5173/dashboard/attendance?qr=${token}`;
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const url = `${clientUrl}/student/attendance?qr=${token}`;
     const qrDataUrl = await QRCode.toDataURL(url, {
       width: 300,
       margin: 2,

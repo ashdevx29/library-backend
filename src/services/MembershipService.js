@@ -131,7 +131,7 @@ export const MembershipService = {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const yearStart = new Date(today.getFullYear(), 0, 1);
 
-    const [totalRevenue, monthRevenue, yearRevenue, pendingCount, recentPayments] = await Promise.all([
+    const [totalRevenue, monthRevenue, yearRevenue, pendingCount, pendingDues, totalTx, recentPayments] = await Promise.all([
       Payment.aggregate([
         { $match: { status: 'Paid' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
@@ -145,6 +145,8 @@ export const MembershipService = {
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       RenewalRequest.countDocuments({ status: 'Pending' }),
+      Payment.countDocuments({ status: 'Pending' }),
+      Payment.countDocuments(),
       Payment.find({ status: 'Paid' })
         .populate({ path: 'memberId', select: 'fullName mobile' })
         .sort({ paymentDate: -1 })
@@ -156,6 +158,8 @@ export const MembershipService = {
       monthRevenue: monthRevenue[0]?.total || 0,
       yearRevenue: yearRevenue[0]?.total || 0,
       pendingRenewals: pendingCount,
+      pendingDues,
+      totalTransactions: totalTx,
       recentPayments,
     };
   },
@@ -188,6 +192,76 @@ export const MembershipService = {
         label: PLAN_LABELS[key],
         days,
       })),
+    };
+  },
+
+  // Admin: get expired & expiring members
+  getExpiredMembers: async (filter) => {
+    const now = new Date();
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 86400000);
+
+    const query = {};
+    if (filter === 'expired') {
+      query.membershipExpiryDate = { $lt: now };
+    } else if (filter === 'expiring') {
+      query.membershipExpiryDate = { $gte: now, $lte: thirtyDaysLater };
+    } else {
+      query.membershipExpiryDate = { $lte: thirtyDaysLater };
+    }
+
+    return Member.find(query)
+      .populate('userId', 'name email mobile')
+      .populate('seatId', 'seatNumber')
+      .populate('shiftId', 'shiftName')
+      .sort({ membershipExpiryDate: 1 });
+  },
+
+  // Admin: get plan-wise revenue & membership stats
+  getPlanStats: async () => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [revenueByPlan, membersByPlan, pendingCount, expiringCount, expiredCount] = await Promise.all([
+      // Revenue grouped by plan type (from membership records)
+      Membership.aggregate([
+        { $match: {} },
+        { $group: { _id: '$planType', totalRevenue: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { totalRevenue: -1 } },
+      ]),
+      // Active members grouped by plan
+      Member.aggregate([
+        { $match: { status: 'Active' } },
+        { $group: { _id: '$membershipPlan', count: { $sum: 1 } } },
+      ]),
+      RenewalRequest.countDocuments({ status: 'Pending' }),
+      Member.countDocuments({
+        status: 'Active',
+        membershipExpiryDate: { $gte: now, $lte: new Date(now.getTime() + 7 * 86400000) },
+      }),
+      Member.countDocuments({ membershipExpiryDate: { $lt: now } }),
+    ]);
+
+    const planOrder = ['Monthly', 'Quarterly', 'HalfYearly', 'Yearly'];
+    const revenueBreakdown = planOrder.map(type => ({
+      plan: type,
+      label: PLAN_LABELS[type] || type,
+      days: PLAN_DAYS[type] || 30,
+      totalRevenue: (revenueByPlan.find(r => r._id === type)?.totalRevenue || 0),
+      renewalCount: (revenueByPlan.find(r => r._id === type)?.count || 0),
+    }));
+
+    const memberBreakdown = planOrder.map(type => ({
+      plan: type,
+      label: PLAN_LABELS[type] || type,
+      count: (membersByPlan.find(m => m._id === type)?.count || 0),
+    }));
+
+    return {
+      revenueBreakdown,
+      memberBreakdown,
+      pendingRenewals: pendingCount,
+      expiringThisWeek: expiringCount,
+      expiredMembers: expiredCount,
     };
   },
 };

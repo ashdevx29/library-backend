@@ -78,4 +78,23 @@ export const MembershipController = {
       res.status(400).json({ success: false, message: error.message });
     }
   },
+
+  getExpiredMembers: async (req, res) => {
+    try {
+      const { filter } = req.query;
+      const data = await MembershipService.getExpiredMembers(filter);
+      res.json({ success: true, data });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  },
+
+  getPlanStats: async (req, res) => {
+    try {
+      const data = await MembershipService.getPlanStats();
+      res.json({ success: true, data });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  },
 };

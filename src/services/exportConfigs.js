@@ -1,0 +1,58 @@
+export const exportConfigs = {
+  members: {
+    label: 'Members',
+    fields: [
+      { key: 'fullName', label: 'Name', type: 'string' },
+      { key: 'mobile', label: 'Mobile', type: 'string' },
+      { key: 'email', label: 'Email', type: 'string' },
+      { key: 'address', label: 'Address', type: 'string' },
+      { key: 'aadhaarNumber', label: 'Aadhaar', type: 'string' },
+      { key: 'seatId.seatNumber', label: 'Seat', type: 'string' },
+      { key: 'shiftId.shiftName', label: 'Shift', type: 'string' },
+      { key: 'membershipPlan', label: 'Plan', type: 'string' },
+      { key: 'joiningDate', label: 'Joining', type: 'date' },
+      { key: 'membershipExpiryDate', label: 'Expiry', type: 'date' },
+      { key: 'attendancePercentage', label: 'Attendance %', type: 'string' },
+      { key: 'status', label: 'Status', type: 'string' },
+    ],
+  },
+  payments: {
+    label: 'Payments',
+    fields: [
+      { key: r => r.memberId?.fullName || '', label: 'Member', type: 'string' },
+      { key: r => r.memberId?.mobile || '', label: 'Mobile', type: 'string' },
+      { key: 'amount', label: 'Amount', type: 'currency' },
+      { key: 'paymentMethod', label: 'Method', type: 'string' },
+      { key: 'paymentDate', label: 'Date', type: 'date' },
+      { key: 'transactionId', label: 'Transaction ID', type: 'string' },
+      { key: r => r.membershipId?.planType || '', label: 'Plan', type: 'string' },
+      { key: 'status', label: 'Status', type: 'string' },
+    ],
+  },
+  attendance: {
+    label: 'Attendance',
+    fields: [
+      { key: r => r.memberId?.fullName || '', label: 'Member', type: 'string' },
+      { key: r => r.memberId?.mobile || '', label: 'Mobile', type: 'string' },
+      { key: 'date', label: 'Date', type: 'date' },
+      { key: 'checkInTime', label: 'Check In', type: 'datetime' },
+      { key: 'checkOutTime', label: 'Check Out', type: 'datetime' },
+      { key: 'duration', label: 'Duration (min)', type: 'string' },
+      { key: 'status', label: 'Status', type: 'string' },
+      { key: 'shiftId.shiftName', label: 'Shift', type: 'string' },
+      { key: 'seatId.seatNumber', label: 'Seat', type: 'string' },
+    ],
+  },
+  expenses: {
+    label: 'Expenses',
+    fields: [
+      { key: 'title', label: 'Title', type: 'string' },
+      { key: 'category', label: 'Category', type: 'string' },
+      { key: 'amount', label: 'Amount', type: 'currency' },
+      { key: 'expenseDate', label: 'Date', type: 'date' },
+      { key: 'paymentMethod', label: 'Method', type: 'string' },
+      { key: 'description', label: 'Description', type: 'string' },
+      { key: r => r.addedBy?.name || '', label: 'Added By', type: 'string' },
+    ],
+  },
+};

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import http from 'http';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import connectDB from './config/database.js';
@@ -10,6 +11,7 @@ import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import { setSeatIo } from './services/SeatService.js';
 import { ShiftService } from './services/ShiftService.js';
 import { RoleService } from './services/RoleService.js';
+import { helmetMiddleware, mongoSanitizeMiddleware, hppMiddleware, apiLimiter } from './middleware/securityMiddleware.js';
 
 import authRoutes from './routes/authRoutes.js';
 import memberRoutes from './routes/memberRoutes.js';
@@ -32,6 +34,9 @@ import backupRoutes from './routes/backupRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import memberCardRoutes from './routes/memberCardRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import exportRoutes from './routes/exportRoutes.js';
+import importRoutes from './routes/importRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -42,31 +47,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    credentials: true,
-  },
+  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: true },
 });
 
 setSeatIo(io);
 
+// ─── Global Security Middleware ───
+app.use(helmetMiddleware);
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(mongoSanitizeMiddleware);
+app.use(hppMiddleware);
+app.use('/api', apiLimiter);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 io.on('connection', (socket) => {
   console.log('User connected via Socket.IO');
-  socket.on('seat:subscribe', () => {
-    socket.join('seats');
-  });
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
-  });
+  socket.on('seat:subscribe', () => socket.join('seats'));
+  socket.on('disconnect', () => console.log('User disconnected'));
 });
 
 app.use('/api/auth', authRoutes);
@@ -90,6 +93,9 @@ app.use('/api/backups', backupRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/members', memberCardRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/import', importRoutes);
 
 app.get('/', (req, res) => {
   res.send('Saahityik Library ERP API is running...');

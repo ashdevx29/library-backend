@@ -15,5 +15,7 @@ router.post('/renewals/:id/approve', protect, authorize('Super Admin', 'Branch A
 router.post('/renewals/:id/reject', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), MembershipController.rejectRenewal);
 router.get('/payments', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), MembershipController.getPayments);
 router.get('/payments/stats', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), MembershipController.getPaymentStats);
+router.get('/expired', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), MembershipController.getExpiredMembers);
+router.get('/plan-stats', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), MembershipController.getPlanStats);
 
 export default router;

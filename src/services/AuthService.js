@@ -1,57 +1,77 @@
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
 import ActivityLog from '../models/ActivityLog.js';
 import generateTokens from '../utils/generateToken.js';
+import { SecurityService } from './SecurityService.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
-const generateSixDigitOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+const FAILED_LOGIN_THRESHOLD = 10;
+const LOCKOUT_DURATION = 30 * 60 * 1000;
+
+const log = (userId, action, module, ipAddress, userAgent, description, metadata) =>
+  ActivityLog.create({ userId, action, module, ipAddress, userAgent, description, metadata });
+
+const findUser = async (identifier, roles) => {
+  const query = identifier.includes('@') ? { email: identifier.toLowerCase() } : { mobile: identifier };
+  if (roles) query.role = { $in: Array.isArray(roles) ? roles : [roles] };
+  return User.findOne(query);
+};
 
 export const AuthService = {
-  // Admin Login - Step 1: Validate and send OTP
-  adminLogin: async (identifier, password, ipAddress) => {
-    const query = identifier.includes('@') ? { email: identifier } : { mobile: identifier };
-    const user = await User.findOne({ ...query, role: { $in: ['Super Admin', 'Branch Admin', 'Staff'] } });
-
+  adminLogin: async (identifier, password, ipAddress, userAgent) => {
+    const user = await findUser(identifier, ['Super Admin', 'Branch Admin', 'Staff']);
     if (!user) throw new Error('Admin not found');
     if (user.status !== 'Active') throw new Error(`Account is ${user.status}`);
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) throw new Error('Invalid credentials');
+    if (!isMatch) {
+      await SecurityService.logFailedLogin(identifier, ipAddress, userAgent);
+      throw new Error('Invalid credentials');
+    }
 
-    // Generate OTP
-    const otpCode = generateSixDigitOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 Minutes
+    const otpCode = Otp.generateOtp();
+    const otpHash = Otp.hashOtp(otpCode);
 
-    // Delete existing OTPs for user
     await Otp.deleteMany({ userId: user._id });
-
-    // Save new OTP
-    const otpRecord = new Otp({
+    await Otp.create({
       userId: user._id,
-      otp: otpCode, // In production, hash this
-      expiresAt,
-      attemptCount: 0
+      otpHash,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      attemptCount: 0,
+      ipAddress,
     });
-    await otpRecord.save();
 
-    // Log activity
-    await ActivityLog.create({ userId: user._id, action: 'Admin Login Init', module: 'Auth', description: `IP: ${ipAddress}` });
+    await log(user._id, 'Admin Login Init', 'Auth', ipAddress, userAgent);
 
-    // Simulate sending OTP (In production, use Twilio/AWS SNS/SendGrid)
+    if (user.email) {
+      sendEmail({
+        to: user.email,
+        subject: 'Your Library ERP Login OTP',
+        html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:12px">
+          <h2 style="color:#f97316">Library ERP</h2>
+          <p>Hi <strong>${user.name}</strong>,</p>
+          <p>Your One-Time Password (OTP) for admin login is:</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:16px;text-align:center;font-size:32px;letter-spacing:8px;font-weight:bold;color:#1e1e1e;margin:16px 0">${otpCode}</div>
+          <p style="color:#666;font-size:13px">This OTP is valid for 5 minutes. Do not share it with anyone.</p>
+        </div>`,
+      }).catch(() => {});
+    }
     console.log(`[DEV] OTP for ${user.email || user.mobile} is ${otpCode}`);
 
     return { message: 'OTP sent successfully', userId: user._id };
   },
 
-  // Admin Login - Step 2: Verify OTP and Login
-  verifyOtp: async (userId, otpCode, ipAddress) => {
-    const otpRecord = await Otp.findOne({ userId });
-    
+  verifyOtp: async (userId, otpCode, ipAddress, userAgent) => {
+    const otpRecord = await Otp.findOne({ userId, isVerified: false });
+
     if (!otpRecord) throw new Error('OTP not found or expired');
     if (otpRecord.expiresAt < new Date()) throw new Error('OTP Expired');
     if (otpRecord.attemptCount >= 5) throw new Error('Max attempts reached. Request a new OTP.');
-    
-    if (otpRecord.otp !== otpCode) {
+
+    const otpHash = Otp.hashOtp(otpCode);
+    if (otpRecord.otpHash !== otpHash) {
       otpRecord.attemptCount += 1;
       await otpRecord.save();
       throw new Error('Wrong OTP');
@@ -61,85 +81,108 @@ export const AuthService = {
     await otpRecord.save();
 
     const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
+
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
-    
     user.refreshToken = refreshToken;
     user.lastLogin = new Date();
     await user.save();
 
-    // Cleanup OTP
     await Otp.deleteMany({ userId });
-
-    await ActivityLog.create({ userId: user._id, action: 'OTP Verified & Logged In', module: 'Auth', description: `IP: ${ipAddress}` });
+    await log(user._id, 'OTP Verified & Logged In', 'Auth', ipAddress, userAgent);
 
     return {
-      user: { _id: user._id, name: user.name, email: user.email, mobile: user.mobile, role: user.role, permissions: await user.getAllPermissions() },
-      accessToken, refreshToken
+      user: {
+        _id: user._id, name: user.name, email: user.email,
+        mobile: user.mobile, role: user.role,
+        permissions: await user.getAllPermissions(),
+      },
+      accessToken, refreshToken,
     };
   },
 
-  // Resend OTP
   resendOtp: async (userId) => {
-    const otpRecord = await Otp.findOne({ userId });
-    
-    if (otpRecord && (new Date() - otpRecord.createdAt) < 60000) {
+    const otpRecord = await Otp.findOne({ userId, isVerified: false });
+    if (otpRecord && (Date.now() - otpRecord.createdAt) < 60000) {
       throw new Error('Please wait 60 seconds before requesting a new OTP');
     }
 
-    const otpCode = generateSixDigitOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const otpCode = Otp.generateOtp();
+    const otpHash = Otp.hashOtp(otpCode);
 
     await Otp.deleteMany({ userId });
-
     await Otp.create({
       userId,
-      otp: otpCode,
-      expiresAt,
-      attemptCount: 0
+      otpHash,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      attemptCount: 0,
     });
 
+    const user = await User.findById(userId);
+    if (user?.email) {
+      sendEmail({
+        to: user.email,
+        subject: 'Your Library ERP Login OTP (Resend)',
+        html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:12px">
+          <h2 style="color:#f97316">Library ERP</h2>
+          <p>Hi <strong>${user.name}</strong>,</p>
+          <p>Your new One-Time Password (OTP) for admin login is:</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:16px;text-align:center;font-size:32px;letter-spacing:8px;font-weight:bold;color:#1e1e1e;margin:16px 0">${otpCode}</div>
+          <p style="color:#666;font-size:13px">This OTP is valid for 5 minutes. Do not share it with anyone.</p>
+        </div>`,
+      }).catch(() => {});
+    }
     console.log(`[DEV] Resent OTP for UserID ${userId} is ${otpCode}`);
     return { message: 'OTP resent successfully' };
   },
 
-  // User Direct Login
-  userLogin: async (identifier, password, ipAddress) => {
-    const query = identifier.includes('@') ? { email: identifier } : { mobile: identifier };
-    const user = await User.findOne({ ...query, role: 'Student' });
-
+  userLogin: async (identifier, password, ipAddress, userAgent) => {
+    const user = await findUser(identifier, 'Student');
     if (!user) throw new Error('User not found');
     if (user.status !== 'Active') throw new Error(`Account is ${user.status}`);
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) throw new Error('Invalid password');
+    if (!isMatch) {
+      await SecurityService.logFailedLogin(identifier, ipAddress, userAgent);
+      throw new Error('Invalid password');
+    }
 
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
-    
     user.refreshToken = refreshToken;
     user.lastLogin = new Date();
     await user.save();
 
-    await ActivityLog.create({ userId: user._id, action: 'User Logged In', module: 'Auth', description: `IP: ${ipAddress}` });
+    await log(user._id, 'User Logged In', 'Auth', ipAddress, userAgent);
 
     return {
-      user: { _id: user._id, name: user.name, email: user.email, mobile: user.mobile, role: user.role, permissions: await user.getAllPermissions() },
-      accessToken, refreshToken
+      user: {
+        _id: user._id, name: user.name, email: user.email,
+        mobile: user.mobile, role: user.role,
+        permissions: await user.getAllPermissions(),
+      },
+      accessToken, refreshToken,
     };
   },
 
-  logout: async (userId) => {
+  logout: async (userId, accessToken, ipAddress) => {
     const user = await User.findById(userId);
-    if (user) {
-      user.refreshToken = '';
-      await user.save();
-      await ActivityLog.create({ userId: user._id, action: 'Logout', module: 'Auth' });
+    if (!user) return true;
+
+    if (user.refreshToken) {
+      await SecurityService.blacklistToken(user.refreshToken, userId, 'refresh');
     }
+    if (accessToken) {
+      await SecurityService.blacklistToken(accessToken, userId, 'access');
+    }
+
+    user.refreshToken = '';
+    await user.save();
+    await log(userId, 'Logout', 'Auth', ipAddress);
     return true;
   },
 
-  forgotPassword: async (identifier) => {
-    const query = identifier.includes('@') ? { email: identifier } : { mobile: identifier };
-    const user = await User.findOne(query);
+  forgotPassword: async (identifier, ipAddress) => {
+    const user = await findUser(identifier);
     if (!user) throw new Error('Account not found');
 
     const resetToken = jwt.sign(
@@ -148,25 +191,23 @@ export const AuthService = {
       { expiresIn: '15m' }
     );
 
-    const resetUrl = `http://localhost:5173/admin/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/reset-password?token=${resetToken}`;
     console.log(`[DEV] Password reset link for ${user.email || user.mobile}: ${resetUrl}`);
 
-    await ActivityLog.create({
-      userId: user._id,
-      action: 'Forgot Password',
-      module: 'Auth',
-      description: 'Password reset link generated',
-    });
+    await log(user._id, 'Forgot Password', 'Auth', ipAddress, null, 'Password reset link generated');
 
     return {
-      message: 'Password reset link sent. Check your email (dev: see server console).',
+      message: 'Password reset link sent. Check your email.',
       resetUrl: process.env.NODE_ENV === 'production' ? undefined : resetUrl,
     };
   },
 
-  resetPassword: async (token, password) => {
+  resetPassword: async (token, password, ipAddress) => {
     if (!token) throw new Error('Reset token is required');
     if (!password || password.length < 8) throw new Error('Password must be at least 8 characters');
+    if (!/[A-Z]/.test(password)) throw new Error('Password must contain at least one uppercase letter');
+    if (!/[a-z]/.test(password)) throw new Error('Password must contain at least one lowercase letter');
+    if (!/[0-9]/.test(password)) throw new Error('Password must contain at least one number');
 
     let decoded;
     try {
@@ -183,12 +224,8 @@ export const AuthService = {
     user.password = password;
     await user.save();
 
-    await ActivityLog.create({
-      userId: user._id,
-      action: 'Password Reset',
-      module: 'Auth',
-      description: 'Password updated via reset link',
-    });
+    await SecurityService.revokeAllUserTokens(user._id);
+    await log(user._id, 'Password Reset', 'Auth', ipAddress, null, 'Password updated via reset link');
 
     return { message: 'Password reset successfully' };
   },
