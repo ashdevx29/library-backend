@@ -47,19 +47,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://library-frontend-jade.vercel.app',
+  'http://localhost:5173',
+].filter(Boolean);
+
 const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: true },
 });
 
 setSeatIo(io);
 
-
 app.use(helmetMiddleware);
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'https://library-frontend-jade.vercel.app',
-  'http://localhost:5173',
-].filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
