@@ -9,7 +9,7 @@ router.get('/stats', protect, ExpenseController.getStats);
 router.get('/reports/daily', protect, ExpenseController.getDailyReport);
 router.get('/reports/monthly', protect, ExpenseController.getMonthlyReport);
 router.get('/reports/yearly', protect, ExpenseController.getYearlyReport);
-
+//  jhihii
 router.get('/', protect, ExpenseController.getAll);
 router.get('/:id', protect, ExpenseController.getById);
 router.post('/', protect, authorize('Super Admin', 'Branch Admin', 'Staff'), ExpenseController.create);
