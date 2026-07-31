@@ -1,5 +1,5 @@
 import { SettingService } from '../services/SettingService.js';
-
+// ff
 const handle = (fn) => async (req, res) => {
   try { res.json({ success: true, data: await fn(req) }); }
   catch (e) { res.status(400).json({ success: false, message: e.message }); }
