@@ -1,6 +1,6 @@
 import { AuthService } from '../services/AuthService.js';
 import { SecurityService } from '../services/SecurityService.js';
-// hello
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -8,6 +8,8 @@ const COOKIE_OPTIONS = {
   path: '/api/auth',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+// ujgugyugu
 
 const setRefreshCookie = (res, token) => res.cookie('refreshToken', token, COOKIE_OPTIONS);
 const clearRefreshCookie = (res) => res.cookie('refreshToken', '', { ...COOKIE_OPTIONS, maxAge: 0 });
