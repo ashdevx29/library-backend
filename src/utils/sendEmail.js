@@ -19,6 +19,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         resolve(result);
       }
     };
+    //  gdg
 
     const socket = tls.connect(465, 'smtp.gmail.com', { rejectUnauthorized: false }, () => {
       // Connected via SSL/TLS

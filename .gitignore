@@ -14,6 +14,8 @@ jspm_packages/
 
 # dotenv environment variable files (सुरक्षा के लिए सबसे जरूरी)
 .env
+.env.example
+.gitignore
 .env.development.local
 .env.test.local
 .env.production.local

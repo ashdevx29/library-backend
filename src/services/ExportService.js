@@ -12,6 +12,7 @@ const entityModelMap = {
   attendance: Attendance,
   expenses: Expense,
 };
+// fe
 
 const buildFilter = (entity, query = {}) => {
   const filter = {};

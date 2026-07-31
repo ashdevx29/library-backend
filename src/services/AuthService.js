@@ -6,7 +6,7 @@ import ActivityLog from '../models/ActivityLog.js';
 import generateTokens from '../utils/generateToken.js';
 import { SecurityService } from './SecurityService.js';
 import { sendEmail } from '../utils/sendEmail.js';
-
+// ee
 const FAILED_LOGIN_THRESHOLD = 10;
 const LOCKOUT_DURATION = 30 * 60 * 1000;
 

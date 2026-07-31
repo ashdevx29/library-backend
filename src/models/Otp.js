@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
-
+// rtet
 const otpSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   otpHash: { type: String, required: true },

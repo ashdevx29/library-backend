@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import BlacklistedToken from '../models/BlacklistedToken.js';
 import ActivityLog from '../models/ActivityLog.js';
 import generateTokens from '../utils/generateToken.js';
-
+// wfef
 export const SecurityService = {
   blacklistToken: async (token, userId, type) => {
     try {

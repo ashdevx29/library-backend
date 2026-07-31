@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-
+// ertet
 const activityLogSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   action: { type: String, required: true, index: true },

@@ -4,7 +4,7 @@ import Attendance from '../models/Attendance.js';
 import Payment from '../models/Payment.js';
 import Expense from '../models/Expense.js';
 import Seat from '../models/Seat.js';
-
+// wrer
 const range = (days) => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);

@@ -6,7 +6,7 @@ import Seat from '../models/Seat.js';
 import SeatHistory from '../models/SeatHistory.js';
 import Member from '../models/Member.js';
 import User from '../models/User.js';
-
+// fege
 const QR_SECRET = process.env.JWT_SECRET + '-qr-attendance';
 const QR_EXPIRY = '5m';
 

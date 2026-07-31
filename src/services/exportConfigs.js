@@ -16,6 +16,7 @@ export const exportConfigs = {
       { key: 'status', label: 'Status', type: 'string' },
     ],
   },
+  // wfee
   payments: {
     label: 'Payments',
     fields: [

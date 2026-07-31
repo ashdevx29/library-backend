@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-
+// efret
 const blacklistedTokenSchema = new mongoose.Schema({
   tokenId: { type: String, required: true, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

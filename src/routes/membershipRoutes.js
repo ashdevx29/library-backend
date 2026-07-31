@@ -3,7 +3,7 @@ import { protect, authorize } from '../middleware/authMiddleware.js';
 import { MembershipController } from '../controllers/MembershipController.js';
 
 const router = express.Router();
-
+// ef
 // User routes
 router.post('/renewal/request', protect, MembershipController.requestRenewal);
 router.get('/my-membership', protect, MembershipController.getMyMembership);
