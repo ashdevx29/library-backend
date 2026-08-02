@@ -51,6 +51,7 @@ const server = http.createServer(app);
 const allowedOrigins = [
   process.env.CLIENT_URL,
   'https://library-frontend-jade.vercel.app',
+  'https://library-frontend-sl.netlify.app',
   'http://localhost:5173',
 ].filter(Boolean);
 
